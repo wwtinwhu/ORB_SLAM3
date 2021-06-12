@@ -23,7 +23,7 @@
 #include<chrono>
 
 #include<ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
+#include<cv_bridge/cv_bridge.h>
 
 #include<opencv2/core/core.hpp>
 
@@ -37,6 +37,7 @@ public:
     ImageGrabber(ORB_SLAM3::System* pSLAM):mpSLAM(pSLAM){}
 
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
+    void GrabImage1(const sensor_msgs::CompressedImageConstPtr& msg);
 
     ORB_SLAM3::System* mpSLAM;
 };
@@ -59,8 +60,9 @@ int main(int argc, char **argv)
     ImageGrabber igb(&SLAM);
 
     ros::NodeHandle nodeHandler;
-    ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage,&igb);
-
+//    ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage,&igb);
+    ros::Subscriber sub = nodeHandler.subscribe<sensor_msgs::CompressedImage>("/camera0/compressed",1,&ImageGrabber::GrabImage1,&igb);
+	
     ros::spin();
 
     // Stop all threads
@@ -89,6 +91,22 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
     }
 
     mpSLAM->TrackMonocular(cv_ptr->image,cv_ptr->header.stamp.toSec());
+}
+
+void ImageGrabber::GrabImage1(const sensor_msgs::CompressedImageConstPtr& msg)
+{
+    cv::Mat image;
+    try
+    {
+        image = cv::imdecode(cv::Mat(msg->data),1);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    mpSLAM->TrackMonocular(image,msg->header.stamp.toSec());
 }
 
 
